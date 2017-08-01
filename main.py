@@ -25,6 +25,7 @@ class SamhangSiGenerator:
                 saved_args = cPickle.load(f)
             with open(os.path.join(self.save_data_path, 'chars_vocab.pkl'), 'rb') as f:
                 self.chars, self.vocab = cPickle.load(f)
+
             self.model = Model(saved_args, training=False)
 
             self.session = tf.Session()
@@ -36,19 +37,32 @@ class SamhangSiGenerator:
             if ckpt and ckpt.model_checkpoint_path:
                 saver.restore(self.session, ckpt.model_checkpoint_path)
 
-    def generate_text(self, prime):
-        sentence_length = 30
-        sample = 1
+    def generate(self, word):
+        result = ""
+        for char in word:
+            result += self.generate_sentence(char)
+        return self.combine_sentence(result, word)
 
-        result = self.model.sample(self.session, self.chars, self.vocab,
-                                   num=sentence_length, prime=prime, sampling_type=sample)
-        print(result.split("\n")[0])
+    def combine_sentence(self, result, word):
+        result = result.replace("\n", " ")
+        for char in word[1:]:
+            result = result.replace(char, "\n"+char, 1)
+        return result
+
+    def generate_sentence(self, prime):
+        sentence_length = 30
+        sentences = self.model.sample(self.session, self.chars,
+                self.vocab, num=sentence_length, prime=prime)
+
+        return " ".join(sentences.split("\n")[:2])
+
+
 
 def main(args):
     samhangsi_generator = SamhangSiGenerator()
     samhangsi_generator.load_model()
-    for char in FLAGS.word:
-        samhangsi_generator.generate_text(char)
+    result = samhangsi_generator.generate(FLAGS.word)
+    print(result)
 
 
 if __name__ == '__main__':
